@@ -146,22 +146,16 @@ def print_userlist(bot, message):
             chats_str += '\n'
 
         try:
-            send_large_message(bot, message.chat_id, chats_str)
+            pass
+            #send_large_message(bot, message.chat_id, chats_str)
         except telegram.TelegramError as error:
             print "TelegramError", error
 
 
         need_str = u'Нужна палатка:\n'
-        for chat in select(chat for chat in Chat if chat.group_id == "need"):
+        for chat in select(chat for chat in Chat if "need" in chat.group_id):
             need_str += u'{}. {} (@{}), пол: {}, мастерская: {}. Контакты: {}'.format(chat.primary_id, chat.realname, chat.username, \
                                                                  chat.gender, chat.masterskaya, chat.contacts)
-
-            if chat.silent_mode:
-                need_str += ' (silent mode)'
-            if chat.deleted:
-                need_str += ' (deleted)'
-            need_str += '\n'
-
         try:
             send_large_message(bot, message.chat_id, need_str)
         except telegram.TelegramError as error:
@@ -169,17 +163,9 @@ def print_userlist(bot, message):
 
 
         give_str = u'Дают палатку:\n'
-        for chat in select(chat for chat in Chat if chat.group_id == "give"):
+        for chat in select(chat for chat in Chat if "give" in chat.group_id):
             give_str += u'{}. {} (@{}), пол: {}, мест в палатке: {}. Контакты: {}'.format(chat.primary_id, chat.realname, chat.username, \
                                                                  chat.gender, chat.places, chat.contacts)
-
-
-            if chat.silent_mode:
-                give_str += ' (silent mode)'
-            if chat.deleted:
-                give_str += ' (deleted)'
-            give_str += '\n'
-
         try:
             send_large_message(bot, message.chat_id, give_str)
         except telegram.TelegramError as error:
@@ -247,7 +233,7 @@ def run(bot, logfile):
                     bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
                 else:
                     reply_markup = '{"keyboard" : [["/continue"]], "resize_keyboard" : true, "one_time_keyboard" : true}'
-                    text = u"По username @{} с Вами могут связываться остальные. Введите любые иные свои контакты для связи или нажмите /continue:".format(username)
+                    text = u"По username @{} с Вами могут связываться остальные. Введите свой телефон для связи или нажмите /continue:".format(username)
                     bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
                     state = "REGISTER_STATE contacts"
             elif len(state.split()) == 2:
@@ -279,9 +265,14 @@ def run(bot, logfile):
                     bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
                     state = "REGISTER_STATE contacts group give gender"
                 elif len(state.split()) == 5:
-                    gender = message.text
-                    reply_markup = '{"keyboard" : [["/register"]], "resize_keyboard" : true}'
-                    text = u"Ваша заявка зарегистрирована! Ожидайте..."
+                    if message.text == "/male":
+                        gender = "male"
+                    elif message.text == "/female":
+                        gender = "female"
+                    else:
+                        gender = message.text
+                    reply_markup = '{"keyboard" : [["/register", "/unregister"]], "resize_keyboard" : true}'
+                    text = u"Ваша заявка зарегистрирована! Нажмите /register для перерегистрации или /unregister, если Ваша больше не актуальна."
                     bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
                     state = "MAIN_STATE"
             elif state.split()[3] == "need":
@@ -292,16 +283,21 @@ def run(bot, logfile):
                     bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
                     state = "REGISTER_STATE contacts group need gender"
                 elif len(state.split()) == 5:
-                    gender = message.text
-                    reply_markup = '{"keyboard" : [["/register"]], "resize_keyboard" : true}'
-                    text = u"Ваша заявка зарегистрирована! Ожидайте..."
+                    if message.text == "/male":
+                        gender = "male"
+                    elif message.text == "/female":
+                        gender = "female"
+                    else:
+                        gender = message.text
+                    reply_markup = '{"keyboard" : [["/register", "/unregister"]], "resize_keyboard" : true}'
+                    text = u"Ваша заявка зарегистрирована! Нажмите /register для перерегистрации или /unregister, если Ваша больше не актуальна."
                     bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
                     state = "MAIN_STATE"
 
         elif state.startswith("MAIN_STATE"):
             if message.text == "I am god":
-                group_id = "admin"
-                reply_markup = '{"keyboard" : [["/user_list", "/register", "/killme"]], "resize_keyboard" : true}'
+                group_id += "_admin"
+                reply_markup = '{"keyboard" : [["/user_list", "/register", "/unregister"]], "resize_keyboard" : true}'
                 bot.sendMessage(chat_id=message.chat_id, text="Вы админ! Вам доступен /user_list", reply_markup=reply_markup)
             elif message.left_chat_member != None:
                 if message.left_chat_member.id == BOT_ID:
@@ -309,14 +305,22 @@ def run(bot, logfile):
             elif message.new_chat_member != None:
                 if message.new_chat_member.id == BOT_ID:
                     deleted = False
+            elif message.text == "/unregister":
+                if "admin" in group_id:
+                    group_id = "admin"
+                else:
+                    group_id = "done"
+                reply_markup = '{"keyboard" : [["/register"]], "resize_keyboard" : true}'
+                text = u"Ваша заявка больше не актуальна! Нажмите /register для новой регистрации."
+                bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
             elif message.text == "/register":
                     reply_markup = '{"keyboard" : [["/continue"]], "resize_keyboard" : true, "one_time_keyboard" : true}'
-                    text = u"По username @{} с Вами могут связываться остальные. Введите любые иные свои контакты для связи или нажмите /continue:".format(username)
+                    text = u"По username @{} с Вами могут связываться остальные. Введите свой телефон для связи или нажмите /continue:".format(username)
                     bot.sendMessage(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
                     state = "REGISTER_STATE contacts"
-            elif group_id == "admin" and message.text == USER_LIST_CMD:
+            elif message.text == USER_LIST_CMD:
                 print_userlist(bot, message)
-            elif group_id == "admin" and message.text == "/killme":
+            elif "admin" in group_id and message.text == "/killme":
                 exit()
             else:
                 pass
