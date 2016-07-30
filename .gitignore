@@ -1,0 +1,3 @@
+.*_token
+*.pyc
+/venv/
